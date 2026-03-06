@@ -3,6 +3,7 @@
   "version": "0.1",
   "manifest_version": 3,
   "description": "A test browser extension.",
+  "permissions": ["storage"],
   "icons": {
       "16": "assets/icon.jpg"
   },

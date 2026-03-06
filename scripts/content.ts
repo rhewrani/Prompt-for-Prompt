@@ -1,3 +1,7 @@
+function Init() {
+    
+}
+
 function setInnerText(element, content) {
     if (element.isContentEditable) {
         console.log("Setting innerText!");
@@ -49,5 +53,4 @@ document.addEventListener('keydown', (event) => {
     }
 }, true);
 
-
-console.log("Content script loaded");
+Init();
