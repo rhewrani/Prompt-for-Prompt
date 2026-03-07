@@ -8,7 +8,6 @@
 </head>
 <body>
     <div id="app" class="dark-theme">
-        <!-- View 1: Settings / Preset List -->
         <div id="view-settings" class="view active">
             <header>
                 <h1>Settings</h1>
@@ -16,12 +15,6 @@
             <main class="presets-section">
                 <h2>Your Presets</h2>
                 <div id="preset-list" class="preset-list">
-                    <!-- Dynamically added presets will go here -->
-                    <!-- Example item template:
-                    <div class="preset-item">
-                        <span>My GPT-4 Preset</span>
-                    </div>
-                    -->
                     <div class="empty-state">No presets found.</div>
                 </div>
             </main>
@@ -36,7 +29,6 @@
             </footer>
         </div>
 
-        <!-- View 2: Add Preset Form -->
         <div id="view-add-preset" class="view">
             <header class="header-with-back">
                 <button id="btn-back" class="icon-btn" aria-label="Go Back">
@@ -45,7 +37,7 @@
                         <polyline points="12 19 5 12 12 5"></polyline>
                     </svg>
                 </button>
-                <h1>Add Preset</h1>
+                <h1 id="form-title">Add Preset</h1>
             </header>
             <main>
                 <div class="form-group">
@@ -56,12 +48,10 @@
                 <div class="form-group">
                     <label for="provider-preset">Provider Preset</label>
                     <select id="provider-preset">
-                        <!-- User's script will inject options here -->
-                        <option value="custom">OpenAI</option>
                     </select>
                 </div>
 
-                <div class="form-group" id="custom-endpoint-group">
+                <div class="form-group" id="custom-endpoint-group" style="display: none;">
                     <label for="api-endpoint">API Endpoint</label>
                     <input type="url" id="api-endpoint" placeholder="https://api.openai.com/v1/chat/completions">
                 </div>
@@ -73,14 +63,39 @@
 
                 <div class="form-group">
                     <label for="api-key">API Key</label>
-                    <input type="password" id="api-key" placeholder="Enter your API key">
+                    <input type="password" id="api-key" placeholder="Enter your API key (optional)">
+                </div>
+
+                <div class="form-group" id="api-format-group" style="display: none;">
+                    <label for="api-format">API Format</label>
+                    <select id="api-format">
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                    </select>
                 </div>
             </main>
             <footer>
                 <button id="btn-save" class="btn-primary success-btn">Save Preset</button>
+                <button id="btn-delete" class="btn-primary danger-btn" style="display: none;">Delete Preset</button>
             </footer>
         </div>
     </div>
+    <template id="preset-item-template">
+        <div class="preset-item">
+            <div class="preset-name">
+                <span class="name-text"></span>
+                <span class="active-badge">Active</span>
+            </div>
+            <div class="preset-actions">
+                <button class="btn-activate-action icon-btn" title="Activate">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </button>
+                <button class="btn-edit-action icon-btn" title="Edit">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                </button>
+            </div>
+        </div>
+    </template>
     <script src="popup.js"></script>
 </body>
 </html>
