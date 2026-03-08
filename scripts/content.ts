@@ -1,5 +1,5 @@
 function Init() {
-    
+
 }
 
 function setInnerText(element, content) {
@@ -25,6 +25,34 @@ function simulateSend(element) {
     element.dispatchEvent(enterEvent);
 }
 
+async function getPreset() {
+    const result = await chrome.storage.local.get({ activeUserPreset: {} });
+    return result.activeUserPreset;
+}
+
+async function handleAltEnter(activeElement) {
+    const content = activeElement.innerText || activeElement.value || "";
+    const preset = await getPreset();
+    if (!preset) {
+        console.error("No active preset found!");
+        return;
+    }
+
+    chrome.runtime.sendMessage({
+        action: "SUBMIT_TEXT",
+        data: {
+            content: content,
+            preset: preset
+        }
+    }).then((response) => {
+        console.log("Response from background: ", response?.status);
+        setInnerText(activeElement, response?.result?.output[0].content);
+        simulateSend(activeElement);
+    }).catch((error) => {
+        console.error("Error sending message: ", error)
+    })
+}
+
 document.addEventListener('keydown', (event) => {
 
     if (!(event.altKey && event.key === 'Enter')) {
@@ -37,19 +65,8 @@ document.addEventListener('keydown', (event) => {
             event.preventDefault();
             event.stopPropagation();
 
-            chrome.runtime.sendMessage({
-                action: "SUBMIT_TEXT",
-                data: {
-                    content: activeElement.innerText || activeElement.value || ""
-                }
-            }).then((response) => {
-                console.log("Response from background: ", response?.status);
-                setInnerText(activeElement, response?.result?.output[0].content);
-                simulateSend(activeElement);
-            }).catch((error) => {
-                console.error("Error sending message: ", error)
-            })
-       }
+            handleAltEnter(activeElement);
+        }
     }
 }, true);
 

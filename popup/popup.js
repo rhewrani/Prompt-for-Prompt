@@ -100,7 +100,6 @@ document.addEventListener("DOMContentLoaded", function() {
     
     function Init() {
         setProviderPresets();
-        loadUserPresets();
         updateUserPresetsUI();
     }
     
@@ -172,6 +171,8 @@ document.addEventListener("DOMContentLoaded", function() {
         const apiEndpoint = document.getElementById("api-endpoint").value.trim();
         const model = document.getElementById("model-name").value.trim();
 
+        console.log(name, apiEndpoint, model);
+
         if (!name || !apiEndpoint || !model) {
             return false;
         }
@@ -185,7 +186,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const formatGroup = document.getElementById("api-format-group");
         const isCustom = providerName === "Custom";
 
-        console.log(providerName);
+        console.log("toggleCustomFields: ", providerName);
         
         customGroup.style.display = isCustom ? "block" : "none";
         formatGroup.style.display = isCustom ? "block" : "none";
@@ -193,12 +194,12 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!isCustom) {
             const config = providerConfigs.find(c => c.name === providerName);
             if (config) {
-                document.getElementById("api-endpoint").value = config.apiUrl;
                 document.getElementById("api-format").value = config.apiFormat;
+                document.getElementById("api-endpoint").value = config.apiUrl;
             }
         } else {
-            document.getElementById("api-endpoint").value = "";
             document.getElementById("api-format").value = "openai";
+            // document.getElementById("api-endpoint").value = "";
         }
     }
 
@@ -218,7 +219,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 title.textContent = "Edit Preset";
                 deleteBtn.style.display = "block";
 
-                console.log(presetData);
+                console.log("User is editing following data: ", presetData.apiUrl);
                 
                 document.getElementById("preset-name").value = presetData.name;
                 document.getElementById("api-endpoint").value = presetData.apiUrl;
@@ -265,6 +266,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 return;
             }
 
+            
             const newPreset = {
                 name: document.getElementById("preset-name").value,
                 apiUrl: document.getElementById("api-endpoint").value,
@@ -276,10 +278,19 @@ document.addEventListener("DOMContentLoaded", function() {
             };
             
 
-            if (editingPresetName && editingPresetName !== newPreset.name) {
-                const presets = await loadUserPresets();
-                delete presets[editingPresetName];
-                await saveUserPresets(presets);
+            if (editingPresetName) {
+                const activePreset = await getActivePreset();
+                if (activePreset.name === editingPresetName) {
+                    newPreset.isActive = true;
+                    await setActivePreset(newPreset);
+                }
+
+                if (editingPresetName !== newPreset.name) {
+                    const presets = await loadUserPresets();
+                    delete presets[editingPresetName];
+                    await saveUserPresets(presets);
+                }
+
             }
 
             await saveUserPreset(newPreset);
@@ -292,8 +303,15 @@ document.addEventListener("DOMContentLoaded", function() {
         deleteButton.addEventListener("click", async function() {
             if (editingPresetName) {
                 const result = await loadUserPresets();
+                const currentActive = await getActivePreset();
+
                 delete result[editingPresetName];
+
                 await saveUserPresets(result);
+                if (currentActive.name === editingPresetName) {
+                    await setActivePreset({});
+                }
+
                 updateUserPresetsUI();
                 showView("view-settings");
             }

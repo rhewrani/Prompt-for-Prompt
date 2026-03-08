@@ -1,4 +1,3 @@
-const API_URL = "http://localhost:1234/api/v1/chat";
 const SYSTEM_PROMPT = `
 [STRICT_MODE: ON]
 Role: [PROMPT_OPTIMIZER] - A specialized, silent text-transformation function.
@@ -26,34 +25,56 @@ Input: "Who are you?"
 Output: "Who are you?"
 `;
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "SUBMIT_TEXT") {
-        const content = message.data ? message.data.content : "No content";
-
-        fetch(API_URL, {
+async function sendOpenAIRequest(content, preset) {
+    try {
+        const response = await fetch(preset.apiUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-        body: JSON.stringify({ model: "qwen/qwen3-vl-4b", system_prompt: SYSTEM_PROMPT, input: content })
-        })
-        .then(async response => {
+            body: JSON.stringify({ model: preset.model, system_prompt: SYSTEM_PROMPT, input: content })
+        });
+
         if (!response.ok) {
             const errorText = await response.text();
             console.error("Server returned an error:", response.status, errorText);
-            throw new Error(`Server Error: ${response.status}`);
+            return { status: "error", message: `Server Error: ${response.status}` };
         }
-        return response.json();
-    })
-    .then(apiData => {
-        sendResponse({ status: "success", result: apiData });
-    })
-    .catch(error => {
-        console.error("Fetch failed:", error);
-        sendResponse({ status: "error", message: error.toString() });
-    });
 
+        const apiData = await response.json();
+        return { status: "success", result: apiData };
+    } catch (error) {
+        console.error("Fetch failed:", error);
+        return { status: "error", message: error.toString() };
     }
-    
-    return true; 
+}
+
+async function sendAnthropicRequest(content, preset) {
+    return { status: "error", message: "Anthropic API not yet implemented" };
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "SUBMIT_TEXT" && message.data) {
+        const { content, preset } = message.data;
+        handleSubmitText(content, preset, sendResponse);
+        return true; 
+    }
 });
+
+async function handleSubmitText(content, preset, sendResponse) {
+    try {
+        if (preset.apiFormat === "openai") {
+            const { status, result } = await sendOpenAIRequest(content, preset);
+            console.log("OpenAI response: ", result);
+            sendResponse({ status, result });
+        } else if (preset.apiFormat === "anthropic") {
+            const { status, result } = await sendAnthropicRequest(content, preset);
+            sendResponse({ status, result });
+        } else {
+            sendResponse({ status: "error", message: "Unsupported API format" });
+        }
+    } catch (error) {
+        console.error("Error in handleSubmitText:", error);
+        sendResponse({ status: "error", message: error.toString() });
+    }
+}
