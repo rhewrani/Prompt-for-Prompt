@@ -90,6 +90,7 @@ document.addEventListener("DOMContentLoaded", function() {
     
     const providerPresetsSelect = document.getElementById("provider-preset");
     const list = document.getElementById("preset-list");
+    const keybindDisplay = document.getElementById("keybind-display");
     
     const addButton = document.getElementById("btn-add-preset");
     const backButton = document.getElementById("btn-back");
@@ -97,10 +98,45 @@ document.addEventListener("DOMContentLoaded", function() {
     const deleteButton = document.getElementById("btn-delete");
     
     let editingPresetName = null;
+    let isRecordingKeybind = false;
     
-    function Init() {
+    async function loadKeybind() {
+        const result = await chrome.storage.local.get({ 
+            keybind: { 
+                key: "Enter", 
+                altKey: true, 
+                ctrlKey: false, 
+                shiftKey: false 
+            } 
+        });
+        return result.keybind;
+    }
+
+    async function saveKeybind(keybind) {
+        await chrome.storage.local.set({ keybind: keybind });
+    }
+
+    function updateKeybindUI(keybind) {
+        if (!keybindDisplay) return;
+        
+        const tags = [];
+        if (keybind.ctrlKey) tags.push("Ctrl");
+        if (keybind.altKey) tags.push("Alt");
+        if (keybind.shiftKey) tags.push("Shift");
+        
+        let html = tags.map(t => `<span class="key-tag">${t}</span>`).join(" + ");
+        if (html) html += " + ";
+        html += `<span class="key-tag">${keybind.key === " " ? "Space" : keybind.key}</span>`;
+        
+        keybindDisplay.innerHTML = html;
+    }
+    
+    async function Init() {
         setProviderPresets();
         updateUserPresetsUI();
+        
+        const keybind = await loadKeybind();
+        updateKeybindUI(keybind);
     }
     
     function setProviderPresets() {
@@ -126,7 +162,32 @@ document.addEventListener("DOMContentLoaded", function() {
         saveUserPresets(result);
         setActivePreset(preset);
         updateUserPresetsUI();
-    
+        
+    }
+
+    async function checkNameAvailibility(name) {
+
+        const currentPresets = await loadUserPresets();
+        const preset = currentPresets[name];
+
+        if (preset) {
+            if (!editingPresetName) return false; 
+
+            if (editingPresetName != name) return false;
+        }
+        return true;
+    }
+
+    function checkSettingsInput() {
+        const name = document.getElementById("preset-name").value.trim();
+        const apiEndpoint = document.getElementById("api-endpoint").value.trim();
+        const model = document.getElementById("model-name").value.trim();
+
+        if (!name || !apiEndpoint || !model) {
+            return false;
+        }
+
+        return true;
     }
     
     async function updateUserPresetsUI() {
@@ -166,19 +227,6 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    function checkSettingsInput() {
-        const name = document.getElementById("preset-name").value.trim();
-        const apiEndpoint = document.getElementById("api-endpoint").value.trim();
-        const model = document.getElementById("model-name").value.trim();
-
-        console.log(name, apiEndpoint, model);
-
-        if (!name || !apiEndpoint || !model) {
-            return false;
-        }
-
-        return true;
-    }
 
 
     function toggleCustomFields(providerName) {
@@ -186,8 +234,6 @@ document.addEventListener("DOMContentLoaded", function() {
         const formatGroup = document.getElementById("api-format-group");
         const isCustom = providerName === "Custom";
 
-        console.log("toggleCustomFields: ", providerName);
-        
         customGroup.style.display = isCustom ? "block" : "none";
         formatGroup.style.display = isCustom ? "block" : "none";
 
@@ -199,7 +245,6 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         } else {
             document.getElementById("api-format").value = "openai";
-            // document.getElementById("api-endpoint").value = "";
         }
     }
 
@@ -219,8 +264,6 @@ document.addEventListener("DOMContentLoaded", function() {
                 title.textContent = "Edit Preset";
                 deleteBtn.style.display = "block";
 
-                console.log("User is editing following data: ", presetData.apiUrl);
-                
                 document.getElementById("preset-name").value = presetData.name;
                 document.getElementById("api-endpoint").value = presetData.apiUrl;
                 document.getElementById("api-key").value = presetData.apiKey;
@@ -266,6 +309,12 @@ document.addEventListener("DOMContentLoaded", function() {
                 return;
             }
 
+            if (!await checkNameAvailibility(document.getElementById("preset-name").value)) {
+                alert("Name already used. Please use a different preset name.");
+                console.log("cancelling save");
+                return;
+            }
+
             
             const newPreset = {
                 name: document.getElementById("preset-name").value,
@@ -280,6 +329,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             if (editingPresetName) {
                 const activePreset = await getActivePreset();
+                console.log("Saving: Active preset is: ", activePreset.name);
                 if (activePreset.name === editingPresetName) {
                     newPreset.isActive = true;
                     await setActivePreset(newPreset);
@@ -318,12 +368,49 @@ document.addEventListener("DOMContentLoaded", function() {
         })
     }
 
+    if (keybindDisplay) {
+        keybindDisplay.addEventListener("click", function() {
+            isRecordingKeybind = true;
+            keybindDisplay.classList.add("is-recording");
+            keybindDisplay.innerHTML = "Press keys...";
+            keybindDisplay.focus();
+        });
+
+        keybindDisplay.addEventListener("keydown", async function(event) {
+            if (!isRecordingKeybind) return;
+            
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (["Alt", "Control", "Shift", "Meta"].includes(event.key)) {
+                return;
+            }
+
+            const newKeybind = {
+                key: event.key,
+                altKey: event.altKey,
+                ctrlKey: event.ctrlKey,
+                shiftKey: event.shiftKey
+            };
+
+            await saveKeybind(newKeybind);
+            updateKeybindUI(newKeybind);
+            
+            isRecordingKeybind = false;
+            keybindDisplay.classList.remove("is-recording");
+            keybindDisplay.blur();
+        });
+
+        keybindDisplay.addEventListener("blur", async function() {
+            if (isRecordingKeybind) {
+                isRecordingKeybind = false;
+                keybindDisplay.classList.remove("is-recording");
+                const keybind = await loadKeybind();
+                updateKeybindUI(keybind);
+            }
+        });
+    }
+
     Init();
 
 })
-
-/*
-chrome.storage.local.remove("userPresets").then(() => {
-        console.log("All user presets have been deleted from storage.");
-    });
-*/

@@ -1,13 +1,27 @@
-function Init() {
+let currentKeybind = {
+    key: "Enter",
+    altKey: true,
+    ctrlKey: false,
+    shiftKey: false
+}
 
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.keybind) {
+        currentKeybind = changes.keybind.newValue;
+    }
+});
+
+async function Init() {
+    const result = await getKeybind();
+    if (result) {
+        currentKeybind = result;
+    }
 }
 
 function setInnerText(element, content) {
     if (element.isContentEditable) {
-        console.log("Setting innerText!");
         element.innerText = content;
     } else if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
-        console.log("Setting value!");
         element.value = content;
     }
 }
@@ -30,6 +44,27 @@ async function getPreset() {
     return result.activeUserPreset;
 }
 
+async function getKeybind() {
+    const result = await chrome.storage.local.get({
+        keybind: {
+            key: "Enter",
+            altKey: true,
+            ctrlKey: false,
+            shiftKey: false
+        }
+    })
+    return result.keybind;
+}
+
+function pressedKeybind(event, keybind) {
+    const matchesKey = event.key === keybind.key;
+    const matchesAlt = event.altKey === keybind.altKey;
+    const matchesCtrl = (event.ctrlKey === keybind.ctrlKey || event.metaKey === keybind.ctrlKey);
+    const matchesShift = event.shiftKey === keybind.shiftKey;
+
+    return matchesKey && matchesAlt && matchesCtrl && matchesShift;
+}
+
 async function handleAltEnter(activeElement) {
     const content = activeElement.innerText || activeElement.value || "";
     const preset = await getPreset();
@@ -45,17 +80,25 @@ async function handleAltEnter(activeElement) {
             preset: preset
         }
     }).then((response) => {
-        console.log("Response from background: ", response?.status);
-        setInnerText(activeElement, response?.result?.output[0].content);
-        simulateSend(activeElement);
+        if (response?.status === "success") {
+            const apiOutput = response.result?.output?.[0]?.content || 
+                             response.result?.choices?.[0]?.message?.content || 
+                             response.result?.content?.[0]?.text ||
+                             "";
+            setInnerText(activeElement, apiOutput);
+            simulateSend(activeElement);
+
+        } else if (response?.status === "error") {
+            const err = response.message;
+            alert(`Prompt for Prompt - Error: ${err}`);
+        }
     }).catch((error) => {
-        console.error("Error sending message: ", error)
+        console.error("Error sending message: ", error);
     })
 }
 
 document.addEventListener('keydown', (event) => {
-
-    if (!(event.altKey && event.key === 'Enter')) {
+    if (!pressedKeybind(event, currentKeybind)) {
         return;
     }
 
