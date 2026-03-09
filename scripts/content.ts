@@ -25,7 +25,6 @@ function setInnerText(element, content) {
         element.value = content;
     }
     
-    // Trigger 'input' events so React/Vue notice the change
     element.dispatchEvent(new Event('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
 }
