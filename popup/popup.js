@@ -29,7 +29,7 @@ const providerConfigs = [
     },
     {
         name: "Google Gemini",
-        apiUrl: "https://generativelanguage.googleapis.com/v1beta/openai/",
+        apiUrl: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         apiKey: null,
         headers: null,
         apiFormat: "openai"
