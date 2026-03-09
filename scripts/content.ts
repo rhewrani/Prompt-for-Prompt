@@ -24,6 +24,10 @@ function setInnerText(element, content) {
     } else if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
         element.value = content;
     }
+    
+    // Trigger 'input' events so React/Vue notice the change
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function simulateSend(element) {
@@ -66,20 +70,33 @@ function pressedKeybind(event, keybind) {
 }
 
 async function handleAltEnter(activeElement) {
-    const content = activeElement.innerText || activeElement.value || "";
+    const originalContent = activeElement.innerText || activeElement.value || "";
+    if (!originalContent.trim()) return;
+
     const preset = await getPreset();
-    if (!preset) {
-        console.error("No active preset found!");
+    if (!preset || !preset.name) {
+        alert("Prompt for Prompt: No active preset selected. Please open the extension popup and activate a preset.");
         return;
     }
+
+    const originalOpacity = activeElement.style.opacity;
+    const originalPointerEvents = activeElement.style.pointerEvents;
+    activeElement.style.opacity = "0.5";
+    activeElement.style.pointerEvents = "none";
+    
+    const loadingText = "Generating optimized prompt...";
+    setInnerText(activeElement, loadingText);
 
     chrome.runtime.sendMessage({
         action: "SUBMIT_TEXT",
         data: {
-            content: content,
+            content: originalContent,
             preset: preset
         }
     }).then((response) => {
+        activeElement.style.opacity = originalOpacity;
+        activeElement.style.pointerEvents = originalPointerEvents;
+
         if (response?.status === "success") {
             const apiOutput = response.result?.output?.[0]?.content || 
                              response.result?.choices?.[0]?.message?.content || 
@@ -89,10 +106,14 @@ async function handleAltEnter(activeElement) {
             simulateSend(activeElement);
 
         } else if (response?.status === "error") {
+            setInnerText(activeElement, originalContent);
             const err = response.message;
             alert(`Prompt for Prompt - Error: ${err}`);
         }
     }).catch((error) => {
+        activeElement.style.opacity = originalOpacity;
+        activeElement.style.pointerEvents = originalPointerEvents;
+        setInnerText(activeElement, originalContent);
         console.error("Error sending message: ", error);
     })
 }
