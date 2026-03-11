@@ -60,12 +60,14 @@ async function getKeybind() {
 }
 
 function pressedKeybind(event, keybind) {
-    const matchesKey = event.key === keybind.key;
-    const matchesAlt = event.altKey === keybind.altKey;
-    const matchesCtrl = (event.ctrlKey === keybind.ctrlKey || event.metaKey === keybind.ctrlKey);
-    const matchesShift = event.shiftKey === keybind.shiftKey;
+    const isPressedCtrl = event.ctrlKey || event.metaKey;
 
-    return matchesKey && matchesAlt && matchesCtrl && matchesShift;
+    return (
+        event.key === keybind.key &&
+        event.altKey === keybind.altKey &&
+        isPressedCtrl === keybind.ctrlKey &&
+        event.shiftKey === keybind.shiftKey
+    );
 }
 
 async function handleAltEnter(activeElement) {
